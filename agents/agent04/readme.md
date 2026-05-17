@@ -182,10 +182,100 @@ Você precisará dele para todas as requisições à API. Se perder o token, ser
 
 ---
 
-### Bibliotecas Python
-- **py-trello:** https://github.com/sarumont/py-trello
+## Passo 6: Configurar o Arquivo `.env`
+
+Crie um arquivo `.env` no mesmo diretório do `agent.py` com as seguintes variáveis:
+
+```env
+TRELLO_API_KEY=sua_api_key_aqui
+TRELLO_API_SECRET=seu_api_secret_aqui
+TRELLO_TOKEN=seu_token_aqui
+TRELLO_BOARD_NAME=DesafioDIOAgents
+```
+
+> 💡 **Dica:** `TRELLO_BOARD_NAME` é opcional — se omitido, o agente usará `DesafioDIOAgents` como padrão.
+
 ---
 
-**Última atualização:** Fevereiro 2026  
+## Mudanças Recentes no `agent.py`
+
+### Carregamento explícito do `.env`
+
+**Antes:** `load_dotenv()` buscava o arquivo `.env` a partir do diretório de trabalho atual, o que causava falhas ao executar o agente de outro diretório.
+
+**Depois:** O `.env` é carregado sempre a partir do diretório do próprio `agent.py`, independente de onde o script é chamado:
+
+```python
+from pathlib import Path
+
+env_path = Path(__file__).parent / '.env'
+load_dotenv(env_path)
+```
+
+---
+
+### Nome do board configurável via `.env`
+
+**Antes:** O nome do board estava fixo no código como `'DIO'` em todas as funções.
+
+**Depois:** Lido da variável de ambiente `TRELLO_BOARD_NAME`, com fallback para `'DesafioDIOAgents'`:
+
+```python
+BOARD_NAME = os.getenv('TRELLO_BOARD_NAME', 'DesafioDIOAgents')
+```
+
+Para trocar de board, basta alterar o `.env` — sem tocar no código.
+
+---
+
+### Tratamento de erros e busca segura de board/lista
+
+**Antes:** As funções usavam índice direto (`[0]`) ao buscar board e lista, o que gerava `IndexError` sem mensagem útil se o nome não fosse encontrado.
+
+**Depois:** Substituído por `next(..., None)` com verificação explícita e mensagem de erro descritiva, inclusive listando os boards/listas disponíveis:
+
+```python
+meu_board = next((b for b in boards if b.name == BOARD_NAME), None)
+if not meu_board:
+    raise ValueError(f"Board '{BOARD_NAME}' não encontrado. Boards disponíveis: {[b.name for b in boards]}")
+```
+
+---
+
+### `adicionar_tarefa` com retorno e remoção de chamada duplicada
+
+**Antes:** A função chamava `client.list_boards()` duas vezes (bug) e não retornava nenhuma mensagem de confirmação.
+
+**Depois:** Chamada duplicada removida, função envolvida em `try/except`, e retorna mensagem de sucesso ou erro:
+
+```python
+return f"Card '{nome_da_task}' criado com sucesso na lista '{minha_lista.name}'"
+```
+
+---
+
+---
+
+## Demonstração
+
+### Agente em funcionamento (ADK Dev UI)
+
+<img width="1151" height="710" alt="agente-funcionando" src="https://github.com/user-attachments/assets/e2a0d489-1d39-4289-b108-23534a9db824" />
+
+
+### Quadro do Trello após interação com o agente
+
+<img width="1905" height="989" alt="trello-board" src="https://github.com/user-attachments/assets/bca6f63d-7767-4ce2-b7c7-c1d1ed99dbe5" />
+
+
+---
+
+### Bibliotecas Python
+- **py-trello:** https://github.com/sarumont/py-trello
+
+---
+
+**Última atualização:** Maio 2026  
 **Versão da API Trello:** v1  
 **Python:** 3.7+
+
